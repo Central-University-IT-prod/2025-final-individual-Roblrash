@@ -1,0 +1,117 @@
+services:
+  app:
+    build: .
+    container_name: ad_engine_app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/solution
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      SERVER_ADDRESS: "REDACTED"
+      SERVER_PORT: "8080"
+      DATABASE_URL: "postgresql+asyncpg://roblrash:20071357@postgres:5432/prod_final"
+      REDIS_URL: "redis://redis:6379/0"
+      MINIO_URL: "http://minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      OPENAI_API_KEY: "REDACTED"
+      HTTP_PROXY: "REDACTED"
+      HTTPS_PROXY: "REDACTED"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    container_name: ad_engine_bot
+    depends_on:
+      - app
+    environment:
+      TELEGRAM_BOT_TOKEN: "REDACTED"
+      API_BASE_URL: "http://app:8080"
+    restart: always
+
+  postgres:
+    image: postgres:latest
+    container_name: ad_engine_postgres
+    environment:
+      POSTGRES_USER: "roblrash"
+      POSTGRES_PASSWORD: "20071357"
+      POSTGRES_DB: "prod_final"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roblrash"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:6
+    container_name: ad_engine_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: ad_engine_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    command: server /data --console-address ":9001"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./recording_rules.yml:/etc/prometheus/recording_rules.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ad_engine_grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning
+      - ./dashboards:/var/lib/grafana/dashboards
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "20071357"
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  prometheus_data:
+  grafana_data:

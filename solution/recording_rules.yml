@@ -1,0 +1,46 @@
+groups:
+- name: ad_engine_rules
+  rules:
+  # CTR в процентах (отношение кликов к показам, умноженное на 100)
+  - record: ad_engine:ctr_percentage
+    expr: 100 * ad_clicks_total / ad_impressions_total
+
+  # Общий доход: сумма доходов от показов и кликов
+  - record: ad_engine:total_revenue
+    expr: sum(ad_impression_revenue + ad_click_revenue)
+
+  # Cуммарный доход от кликов на рекламу
+  - record: ad_engine:revenue_from_clicks
+    expr: sum(ad_click_revenue)
+
+  # Cуммарный доход от показов рекламы
+  - record: ad_engine:revenue_from_impressions
+    expr: sum(ad_impression_revenue)
+
+  # Поминутный доход от кликов (прирост за минуту)
+  - record: ad_engine:minute_revenue_from_clicks
+    expr: sum(increase(ad_click_revenue[1m]))
+
+  # Поминутный доход от показов (прирост за минуту)
+  - record: ad_engine:minute_revenue_from_impressions
+    expr: sum(increase(ad_impression_revenue[1m]))
+
+  # Суммарный ежеминутный доход (доход от кликов + доход от показов)
+  - record: ad_engine:minute_total_revenue
+    expr: ad_engine:minute_revenue_from_clicks + ad_engine:minute_revenue_from_impressions
+
+    # Тренд дохода по времени
+  - record: ad_engine:trend_revenue
+    expr: sum(increase(ad_impression_revenue[1m]) + increase(ad_click_revenue[1m]))
+
+    # Суммарное количество кликов за минуту
+  - record: ad_engine:clicks_per_minute
+    expr: sum(increase(ad_clicks_total[1m]))
+
+    # Суммарное количество показов за минуту
+  - record: ad_engine:impressions_per_minute
+    expr: sum(increase(ad_impressions_total[1m]))
+
+    # Суммарное количество ошибок API (500) за минуту
+  - record: ad_engine:api_errors_per_minute
+    expr: sum(increase(api_errors_total[1m]))
